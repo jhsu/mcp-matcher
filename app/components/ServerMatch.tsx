@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { getServers, getServerDetails, type SmitheryServer, type ServerDetails } from '../actions'
 
 interface ServerMatchProps {
@@ -8,6 +9,8 @@ interface ServerMatchProps {
 }
 
 export default function ServerMatch({ authToken }: ServerMatchProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [servers, setServers] = useState<SmitheryServer[]>([])
   const [selectedServers, setSelectedServers] = useState<{
     server1: ServerDetails | null
@@ -47,6 +50,14 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
       
       setSelectedServers({ server1: server1Details, server2: server2Details })
       setSelectedConnections({ server1: 0, server2: 0 })
+      
+      // Update URL with selected servers
+      const params = new URLSearchParams()
+      params.set('server1', server1Details.qualifiedName)
+      params.set('server2', server2Details.qualifiedName)
+      params.set('conn1', '0')
+      params.set('conn2', '0')
+      router.push(`?${params.toString()}`, { scroll: false })
       
       // Create combined configuration with first connection of each server
       updateCombinedConfig(server1Details, server2Details, 0, 0)
@@ -98,6 +109,14 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
       serverConfig.env = generateSampleConfig(schema)
     }
     
+    // For HTTP connections, always add API_KEY for Smithery authentication
+    if (connection.type === 'http') {
+      if (!serverConfig.env) {
+        serverConfig.env = {}
+      }
+      serverConfig.env.API_KEY = "<your-smithery-api-key>"
+    }
+    
     return serverConfig
   }
 
@@ -126,6 +145,15 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
       [serverKey]: connectionIndex
     }
     setSelectedConnections(newConnections)
+    
+    // Update URL with new connection selection
+    const params = new URLSearchParams(searchParams)
+    if (serverKey === 'server1') {
+      params.set('conn1', connectionIndex.toString())
+    } else {
+      params.set('conn2', connectionIndex.toString())
+    }
+    router.push(`?${params.toString()}`, { scroll: false })
     
     if (selectedServers.server1 && selectedServers.server2) {
       updateCombinedConfig(
@@ -165,6 +193,57 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
       }
     }
     return config
+  }
+
+  // Load match from URL params on page load
+  useEffect(() => {
+    const server1Name = searchParams.get('server1')
+    const server2Name = searchParams.get('server2')
+    const conn1 = searchParams.get('conn1')
+    const conn2 = searchParams.get('conn2')
+
+    if (server1Name && server2Name) {
+      loadMatchFromParams(server1Name, server2Name, conn1, conn2)
+    }
+  }, [authToken])
+
+  const loadMatchFromParams = async (
+    server1Name: string, 
+    server2Name: string, 
+    conn1: string | null, 
+    conn2: string | null
+  ) => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // Get details for both servers
+      const [server1Details, server2Details] = await Promise.all([
+        getServerDetails(server1Name, authToken),
+        getServerDetails(server2Name, authToken)
+      ])
+      
+      const connection1Index = conn1 ? parseInt(conn1) : 0
+      const connection2Index = conn2 ? parseInt(conn2) : 0
+      
+      setSelectedServers({ server1: server1Details, server2: server2Details })
+      setSelectedConnections({ 
+        server1: Math.min(connection1Index, server1Details.connections.length - 1),
+        server2: Math.min(connection2Index, server2Details.connections.length - 1)
+      })
+      
+      // Create combined configuration
+      updateCombinedConfig(
+        server1Details, 
+        server2Details, 
+        Math.min(connection1Index, server1Details.connections.length - 1),
+        Math.min(connection2Index, server2Details.connections.length - 1)
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load servers from URL')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const copyToClipboard = async () => {
@@ -240,31 +319,28 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
             
             {selectedServers.server1.connections.length > 0 && (
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-medium text-gray-900">Connection:</h3>
-                  {selectedServers.server1.connections.length > 1 && (
-                    <select
-                      value={selectedConnections.server1}
-                      onChange={(e) => handleConnectionChange('server1', parseInt(e.target.value))}
-                      className="text-sm border rounded px-2 py-1 text-gray-900"
-                    >
-                      {selectedServers.server1.connections.map((conn, idx) => (
-                        <option key={idx} value={idx}>
-                          {conn.type} {conn.type === 'http' ? `(${conn.deploymentUrl})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {selectedServers.server1.connections.length === 1 && (
-                    <span className="text-sm text-gray-700">
-                      {selectedServers.server1.connections[0].type}
-                      {selectedServers.server1.connections[0].type === 'http' && ` (${selectedServers.server1.connections[0].deploymentUrl})`}
-                    </span>
-                  )}
-                </div>
-                <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto max-h-40">
-                  {JSON.stringify(selectedServers.server1.connections[selectedConnections.server1].configSchema, null, 2)}
-                </pre>
+                <h3 className="font-medium text-gray-900 mb-2">Connection Type:</h3>
+                {selectedServers.server1.connections.length > 1 ? (
+                  <div className="flex gap-2">
+                    {selectedServers.server1.connections.map((conn, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleConnectionChange('server1', idx)}
+                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                          selectedConnections.server1 === idx
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {conn.type}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="inline-block px-3 py-1 bg-blue-500 text-white rounded text-sm font-medium">
+                    {selectedServers.server1.connections[0].type}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -309,31 +385,28 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
             
             {selectedServers.server2.connections.length > 0 && (
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-medium text-gray-900">Connection:</h3>
-                  {selectedServers.server2.connections.length > 1 && (
-                    <select
-                      value={selectedConnections.server2}
-                      onChange={(e) => handleConnectionChange('server2', parseInt(e.target.value))}
-                      className="text-sm border rounded px-2 py-1 text-gray-900"
-                    >
-                      {selectedServers.server2.connections.map((conn, idx) => (
-                        <option key={idx} value={idx}>
-                          {conn.type} {conn.type === 'http' ? `(${conn.deploymentUrl})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {selectedServers.server2.connections.length === 1 && (
-                    <span className="text-sm text-gray-700">
-                      {selectedServers.server2.connections[0].type}
-                      {selectedServers.server2.connections[0].type === 'http' && ` (${selectedServers.server2.connections[0].deploymentUrl})`}
-                    </span>
-                  )}
-                </div>
-                <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto max-h-40">
-                  {JSON.stringify(selectedServers.server2.connections[selectedConnections.server2].configSchema, null, 2)}
-                </pre>
+                <h3 className="font-medium text-gray-900 mb-2">Connection Type:</h3>
+                {selectedServers.server2.connections.length > 1 ? (
+                  <div className="flex gap-2">
+                    {selectedServers.server2.connections.map((conn, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleConnectionChange('server2', idx)}
+                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                          selectedConnections.server2 === idx
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {conn.type}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="inline-block px-3 py-1 bg-blue-500 text-white rounded text-sm font-medium">
+                    {selectedServers.server2.connections[0].type}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -342,7 +415,19 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
 
       {combinedConfig && (
         <div className="border rounded-lg p-6 bg-gray-50">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">Combined MCP Configuration</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Combined MCP Configuration</h2>
+            <button
+              onClick={copyToClipboard}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                copySuccess 
+                  ? 'bg-green-500 text-white' 
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
+            >
+              {copySuccess ? '✓ Copied!' : 'Copy to Clipboard'}
+            </button>
+          </div>
           <pre className="bg-white p-4 rounded border overflow-auto text-sm text-gray-900">
             {JSON.stringify(combinedConfig, null, 2)}
           </pre>
