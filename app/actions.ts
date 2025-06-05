@@ -20,16 +20,20 @@ export interface SmitheryResponse {
   };
 }
 
-export async function getServers(authToken: string): Promise<SmitheryResponse> {
-  const response = await fetch('https://registry.smithery.ai/servers?pageSize=50', {
+export async function getServers(): Promise<SmitheryResponse> {
+  if (!process.env.SMITHERY_AUTH_TOKEN) {
+    throw new Error('SMITHERY_API_KEY is not set in environment variables');
+  }
+  const response = await fetch('https://registry.smithery.ai/servers?pageSize=25', {
     method: 'GET',
     headers: {
-      'Authorization': `Bearer ${authToken}`,
+      'Authorization': `Bearer ${process.env.SMITHERY_AUTH_TOKEN}`,
       'Content-Type': 'application/json',
     },
   });
 
   if (!response.ok) {
+    console.error(response);
     throw new Error(`Failed to fetch servers: ${response.status} ${response.statusText}`);
   }
 
@@ -92,6 +96,7 @@ export async function getServerDetails(qualifiedName: string, authToken: string)
   });
 
   if (!response.ok) {
+    console.error(response);
     throw new Error(`Failed to fetch server details: ${response.status} ${response.statusText}`);
   }
 

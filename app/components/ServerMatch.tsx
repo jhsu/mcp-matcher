@@ -37,7 +37,7 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
 
     try {
       // Get list of servers
-      const serversResponse = await getServers(authToken);
+      const serversResponse = await getServers();
       setServers(serversResponse.servers);
 
       // Pick two random servers
