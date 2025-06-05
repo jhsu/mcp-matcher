@@ -25,7 +25,7 @@ export async function getServers(): Promise<SmitheryResponse> {
   if (!authToken) {
     throw new Error('SMITHERY_API_KEY is not set in environment variables');
   }
-  const response = await fetch('https://registry.smithery.ai/servers?pageSize=25', {
+  const response = await fetch('https://registry.smithery.ai/servers?pageSize=50', {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${authToken}`,
