@@ -286,8 +286,13 @@ export default function ServerMatch() {
     <div className="p-6 max-w-7xl mx-auto text-gray-900">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-4 text-gray-900">
-          MCP Server Match
+          <a href="/" className="hover:text-blue-600 transition-colors">
+            MCP Server Match
+          </a>
         </h1>
+        <p className="text-lg text-gray-600 mb-6 max-w-3xl">
+          Discover the most cursed MCP server combinations! This tool randomly pairs servers from the Smithery registry to help you explore unexpected integrations and create wildly creative (or chaotic) MCP configurations.
+        </p>
         <button
           onClick={fetchServersAndMatch}
           disabled={loading}
