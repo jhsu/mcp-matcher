@@ -19,15 +19,16 @@ export interface SmitheryResponse {
     totalCount: number;
   };
 }
+const authToken = process.env.SMITHERY_AUTH_TOKEN;
 
 export async function getServers(): Promise<SmitheryResponse> {
-  if (!process.env.SMITHERY_AUTH_TOKEN) {
+  if (!authToken) {
     throw new Error('SMITHERY_API_KEY is not set in environment variables');
   }
   const response = await fetch('https://registry.smithery.ai/servers?pageSize=25', {
     method: 'GET',
     headers: {
-      'Authorization': `Bearer ${process.env.SMITHERY_AUTH_TOKEN}`,
+      'Authorization': `Bearer ${authToken}`,
       'Content-Type': 'application/json',
     },
   });
@@ -86,7 +87,10 @@ export interface ServerDetails {
   }> | null;
 }
 
-export async function getServerDetails(qualifiedName: string, authToken: string): Promise<ServerDetails> {
+export async function getServerDetails(qualifiedName: string): Promise<ServerDetails> {
+  if (!authToken) {
+    throw new Error('SMITHERY_AUTH_TOKEN is not set in environment variables');
+  }
   const response = await fetch(`https://registry.smithery.ai/servers/${qualifiedName}`, {
     method: 'GET',
     headers: {

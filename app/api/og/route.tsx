@@ -8,10 +8,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const server1Name = searchParams.get("server1");
     const server2Name = searchParams.get("server2");
-    const authToken =
-      searchParams.get("token") ||
-      process.env.SMITHERY_AUTH_TOKEN ||
-      "demo-token";
 
     let server1DisplayName = server1Name || "Server 1";
     let server2DisplayName = server2Name || "Server 2";
@@ -19,11 +15,11 @@ export async function GET(request: Request) {
     let server2Description = "";
 
     // Try to fetch server details if we have names and auth token
-    if (server1Name && server2Name && authToken !== "demo-token") {
+    if (server1Name && server2Name) {
       try {
         const [server1Details, server2Details] = await Promise.all([
-          getServerDetails(server1Name, authToken),
-          getServerDetails(server2Name, authToken),
+          getServerDetails(server1Name),
+          getServerDetails(server2Name),
         ]);
         server1DisplayName = server1Details.displayName;
         server2DisplayName = server2Details.displayName;

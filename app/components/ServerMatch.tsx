@@ -10,11 +10,7 @@ import {
   ServerConnection,
 } from "../actions";
 
-interface ServerMatchProps {
-  authToken: string;
-}
-
-export default function ServerMatch({ authToken }: ServerMatchProps) {
+export default function ServerMatch() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [servers, setServers] = useState<SmitheryServer[]>([]);
@@ -52,8 +48,8 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
 
       // Get details for both servers
       const [server1Details, server2Details] = await Promise.all([
-        getServerDetails(randomServers[0].qualifiedName, authToken),
-        getServerDetails(randomServers[1].qualifiedName, authToken),
+        getServerDetails(randomServers[0].qualifiedName),
+        getServerDetails(randomServers[1].qualifiedName),
       ]);
 
       setSelectedServers({ server1: server1Details, server2: server2Details });
@@ -223,7 +219,7 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
     if (server1Name && server2Name) {
       loadMatchFromParams(server1Name, server2Name, conn1, conn2);
     }
-  }, [authToken]);
+  }, []);
 
   const loadMatchFromParams = async (
     server1Name: string,
@@ -237,8 +233,8 @@ export default function ServerMatch({ authToken }: ServerMatchProps) {
     try {
       // Get details for both servers
       const [server1Details, server2Details] = await Promise.all([
-        getServerDetails(server1Name, authToken),
-        getServerDetails(server2Name, authToken),
+        getServerDetails(server1Name),
+        getServerDetails(server2Name),
       ]);
 
       const connection1Index = conn1 ? parseInt(conn1) : 0;
